@@ -1,0 +1,16 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ${CI_PROJECT_NAME}-rate-limiting
+  namespace: ${KUBE_NAMESPACE}
+  annotations:
+    kubernetes.io/ingress.class: ${INGRESS_CLASS}
+  labels:
+    ApplicationName: ${KUBE_APPLICATION_NAME}
+config:
+  # number of HTTP requests that can be made per minute.
+  limit_by: header
+  header_name: X-Forwarded-For
+  minute: ${RATE_LIMIT_AMOUNT}
+  policy: local
+plugin: rate-limiting

@@ -1,0 +1,14 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: "${CI_PROJECT_NAME}"
+  namespace: ${KUBE_NAMESPACE}
+  labels:
+    app: "${CI_PROJECT_NAME}"
+    commit: "${CI_COMMIT_SHORT_SHA}"
+    ApplicationName: ${KUBE_APPLICATION_NAME}
+data:
+  NODE_ENV: ${NODE_ENV}
+  SECRET_ID: "${SECRET_ID}"
+  PORT: "8080"
+

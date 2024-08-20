@@ -1,0 +1,31 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  creationTimestamp: null
+  labels:
+    ApplicationName: ${KUBE_APPLICATION_NAME}
+  name: "${CI_PROJECT_NAME}"
+  namespace: ${KUBE_NAMESPACE}
+spec:
+  maxReplicas: ${MAX_REPLICAS}
+  metrics:
+  - resource:
+      name: cpu
+      target:
+        averageUtilization: ${HPA_CPU}
+        type: Utilization
+    type: Resource
+  - resource:
+      name: memory
+      target:
+        averageUtilization: ${HPA_MEM}
+        type: Utilization
+    type: Resource
+  minReplicas: ${MIN_REPLICAS}
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: "${CI_PROJECT_NAME}"
+status:
+  currentMetrics: null
+  desiredReplicas: 0

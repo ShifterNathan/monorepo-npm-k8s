@@ -1,0 +1,57 @@
+name: 🚀 NestJS
+run-name: deploy-nestjs
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'packages/nestjs/**'
+      - 'k8s/nestjs/**'
+
+env:
+  PACKAGE_NAME: 'nestjs'
+  REPOSITORY_SUFFIX: 'nestjs'
+  CI_PROJECT_NAME: 'aws-address-monorepo-nestjs' # change it to your own server address
+  NODE_VERSION: 20
+
+jobs:
+  set-env:
+    environment: ${{ (github.ref_name == 'refs/heads/main' || github.ref_name == 'refs/heads/master') && 'production' || 'staging' }}
+    runs-on:
+      group: gh-runners-self-hosted
+    outputs:
+      dockerfile: ${{ steps.set.outputs.DOCKERFILE }}
+      node_version: ${{ steps.set.outputs.NODE_VERSION }}
+      k8s_dir: ${{ steps.set.outputs.K8S_DIR }}
+    steps:
+      - name: Set envs
+        id: set
+        run: |
+          echo "DOCKERFILE=./packages/${PACKAGE_NAME}/Dockerfile" >> "$GITHUB_OUTPUT"
+          echo "NODE_VERSION=${NODE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "K8S_DIR=./k8s/${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "PKG_NAME=${PACKAGE_NAME}" >> "$GITHUB_ENV"
+
+  envs-context:
+    needs: [set-env]
+    environment: ${{ (github.ref_name == 'refs/heads/main' || github.ref_name == 'refs/heads/master') && 'production' || 'staging' }}
+    runs-on:
+      group: gh-runners-self-hosted
+    outputs:
+      envs-context: ${{ steps.to-json-env.outputs.envs-context }}
+    steps:
+      - name: Env to JSON
+        id: to-json-env
+        uses: Base-Repository/actions/env-to-json@main # Change it to your own base repository
+
+  k8s:
+    name: "Deploy to k8s"
+    needs: [set-env, envs-context]
+    uses: Base-Repository/actions/.github/workflows/deploy-to-k8s.yml@main # Change it to your own base repository
+    secrets: inherit
+    with:
+      dry-run: ${{ !(github.event_name == 'workflow_dispatch' || (github.ref_name == 'master' || github.ref_name == 'develop')) }}
+      envs-context: ${{ needs.envs-context.outputs.envs-context }}
+      dockerfile: ${{ needs.set-env.outputs.dockerfile }}
+      context: './'
+      k8s-src-dir: ${{ needs.set-env.outputs.k8s_dir }}
+

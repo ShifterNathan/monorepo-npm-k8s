@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+    konghq.com/plugins: api-key, ${CI_PROJECT_NAME}-rate-limiting
+    kubernetes.io/ingress.class: ${INGRESS_CLASS}
+  creationTimestamp: null
+  name: ${CI_PROJECT_NAME}-ingress-nginx
+  namespace: ${KUBE_NAMESPACE}
+  labels:
+    ApplicationName: ${KUBE_APPLICATION_NAME}
+spec:
+  rules:
+  - host: ${CI_PROJECT_NAME}.${ENDPOINT}
+    http:
+      paths:
+      - backend:
+          service:
+            name: ${CI_PROJECT_NAME}
+            port:
+              number: 8080
+        pathType: ImplementationSpecific
+status:
+  loadBalancer: {}

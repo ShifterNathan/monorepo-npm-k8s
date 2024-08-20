@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${CI_PROJECT_NAME}
+  namespace: ${KUBE_NAMESPACE}
+  annotations:
+    deployer: "${GITLAB_USER_NAME} ${GITLAB_USER_EMAIL}"
+    project_url: "${CI_PROJECT_URL}"
+    description: "Deployment ${CI_PROJECT_NAME}"
+    changelog: "${CI_COMMIT_TITLE}"
+    app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+    app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+    owner: ${PROJECT_OWNER}
+    function: ${PROJECT_DESCRIPTION}
+    businessImpact: "${BUSINESS_IMPACT}"
+  labels:
+    ApplicationName: "${CI_PROJECT_NAME}"
+    app: "${CI_PROJECT_NAME}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "${CI_PROJECT_NAME}"
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: ${MAX_SURGE}
+      maxUnavailable: ${MAX_UNAVAILABLE}
+  template:
+    metadata:
+      labels:
+        app: "${CI_PROJECT_NAME}"
+        businessImpact: "${BUSINESS_IMPACT}"
+      annotations:
+        app.gitlab.com/app: ${CI_PROJECT_PATH_SLUG}
+        app.gitlab.com/env: ${CI_ENVIRONMENT_SLUG}
+    spec:
+      serviceAccountName: ${KUBE_NAMESPACE}
+      automountServiceAccountToken: true
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: topology.kubernetes.io/zone
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+              weight: 100
+      nodeSelector:
+        ${SELECTOR_ROLE}
+      containers:
+        - name: "${CI_PROJECT_NAME}"
+          image: ${REGISTRY_IMAGE}/${PACKAGE_NAME}:${CI_PIPELINE_IID}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: "${CI_PROJECT_NAME}"
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 15
+            timeoutSeconds: 90
+            periodSeconds: 5
+            failureThreshold: 15
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 8080
+            initialDelaySeconds: 30
+            timeoutSeconds: 120
+            periodSeconds: 10
+            failureThreshold: 10
+          resources:
+            requests:
+              memory: ${MEMORY}
+              cpu: "${CPU}"
+            limits:
+              memory: ${MEMORY_LIMIT}
+              cpu: "${CPU_LIMIT}"
+      imagePullSecrets:
+        - name: github-registry-credentials
